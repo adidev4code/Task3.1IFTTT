@@ -25,34 +25,6 @@ Measure the analog readings from the sensor in bright sunlight and in shade usin
 
 Acceptable performance is defined as receiving at least four out of five correct notifications within a few seconds of each physical change and stable operation (no repeated false triggers) over a continuous monitoring period (e.g., 30 minutes). Capture the Serial Monitor log and screenshots of received notifications as submission evidence.
 
-## Files included in repository
-- `src/IFTTT_Terrarium.ino` — the single-file Arduino sketch (replace placeholders before uploading).  
-- `src/secrets_template.h` — optional template showing how to separate secrets locally (do not commit).  
-- `.gitignore` — recommended rules (ignore secrets).  
-- `schematics/wiring.jpg` — add a clear photo of the actual wiring (take with your phone).  
-- `video_link.txt` — include the URL to your demo video.
 
-## Circuit wiring (voltage divider)
-- LDR one leg → **3.3V**  
-- LDR other leg → **A0** (sensorPin) and to the top of the 10 kΩ resistor  
-- 10 kΩ resistor other leg → **GND**  
-- Optional: LED long leg → D2 → 220 Ω resistor → GND
 
-## How to run (step-by-step)
-1. Open Arduino IDE, install board support for **Arduino Nano 33 IoT**, and ensure `WiFiNINA` is available.  
-2. Edit `src/IFTTT_Terrarium.ino`: replace `YOUR_WIFI_NAME`, `YOUR_WIFI_PASSWORD`, and `YOUR_IFTTT_KEY` with your credentials. (Alternatively create `src/secrets.h` locally; do not push it.)  
-3. Wire the circuit on the breadboard as above. Use 3.3V (do not use 5V).  
-4. Select board `Arduino Nano 33 IoT` and the correct COM port, then upload the sketch.  
-5. Open Serial Monitor at **115200** baud to view sensor values and debug messages.  
-6. Calibrate `THRESHOLD`: record a few bright and dark values, set `THRESHOLD` to a midpoint, and adjust `HYSTERESIS` if necessary to avoid toggling.
-
-## Evidence required for submission
-- A short demo video that shows: the hardware & wiring, Serial Monitor readings while you trigger ON/OFF, and the phone/email receiving notifications for both ON and OFF events.  
-- A screenshot of the Serial Monitor showing representative bright and dark readings and the detection messages.  
-- A screenshot of the notification received on the phone (or an email).  
-- GitHub repository with the sketch and README, and a wiring photograph in `schematics/wiring.jpg`.
-
-## Notes and safety
-- Do **not** commit Wi-Fi passwords or IFTTT keys to a public repository. Use `.gitignore` for `src/secrets.h` if you separate secrets.  
-- Use 3.3V for the Nano 33 IoT and sensor; verify wiring before powering on.
 
