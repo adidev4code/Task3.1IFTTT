@@ -2,33 +2,48 @@
   
 #include <WiFiNINA.h>
 #include <ArduinoHttpClient.h>
+#include <Wire.h>
+#include <BH1750.h>
 
-// WiFi credentials
-char ssid[] = "Alfred Nobel";
-char pass[] = "CUPunjab";
+// ===== WiFi Configuration =====
+char ssid[] = "Adidev";
+char pass[] = "@admin123456789";
 
-// IFTTT Webhooks
+// ===== IFTTT Webhooks =====
 char server[] = "maker.ifttt.com";
-String IFTTT_Key = "m65w3Oxxb5DrcXpvMmRzmNeUBfWbtuTIV00XdMXQz";
+String IFTTT_Key = "m65w3Oxxb5DrcXpvMmRzmNeUBfWbtuTIV00XdMX-Qz-";
 String Event_SunlightOn = "sunlight_started";
 String Event_SunlightOff = "sunlight_stopped";
 
-WiFiClient wifi;
-HttpClient client = HttpClient(wifi, server, 80);
+// ===== Global Objects =====
+WiFiSSLClient wifi;  // secure client for HTTPS
+HttpClient client = HttpClient(wifi, server, 443);
+BH1750 lightMeter;
 
-// Light sensor
-const int lightSensorPin = A0;
-int threshold = 600;  // Adjust depending on your sensor & lighting
+// ===== Light Threshold =====
+float thresholdLux = 300.0; // adjust for terrarium lighting
 
-// Time tracking
+// ===== Time Tracking =====
 unsigned long burstStartTime = 0;
 unsigned long totalSunlight = 0; // milliseconds
 bool inSunlight = false;
 
+// ===== Setup =====
 void setup() {
   Serial.begin(9600);
+  connectWiFi();
+  initLightSensor();
+}
 
-  // Connect to WiFi
+// ===== Loop =====
+void loop() {
+  float lux = readLightLevel();
+  processLightState(lux);
+  delay(1000); // check every 1 sec
+}
+
+// ===== WiFi Connection =====
+void connectWiFi() {
   while (WiFi.begin(ssid, pass) != WL_CONNECTED) {
     Serial.print(".");
     delay(5000);
@@ -36,55 +51,72 @@ void setup() {
   Serial.println("\nConnected to WiFi!");
 }
 
-void loop() {
-  int sensorValue = analogRead(lightSensorPin);
-  Serial.print("Light: ");
-  Serial.println(sensorValue);
+// ===== Sensor Initialization =====
+void initLightSensor() {
+  Wire.begin();
+  if (lightMeter.begin(BH1750::CONTINUOUS_HIGH_RES_MODE)) {
+    Serial.println("BH1750 ready!");
+  } else {
+    Serial.println("Error: BH1750 not detected!");
+    while (1);
+  }
+}
 
+// ===== Read Sensor =====
+float readLightLevel() {
+  float lux = lightMeter.readLightLevel();
+  Serial.print("Light: ");
+  Serial.print(lux);
+  Serial.println(" lx");
+  return lux;
+}
+
+// ===== Process Sunlight Logic =====
+void processLightState(float lux) {
   unsigned long now = millis();
 
-  // Case 1: Sunlight starts
-  if (sensorValue > threshold && !inSunlight) {
+  if (lux > thresholdLux && !inSunlight) {
     inSunlight = true;
     burstStartTime = now;
-
-    // Send trigger: sunlight started
+    Serial.println("☀️ Sunlight detected!");
     triggerIFTTT(Event_SunlightOn,
-                 String(totalSunlight / 60000), // total minutes so far
-                 "0",                           // burst just started
-                 String(sensorValue));
+                 String(totalSunlight / 60000),
+                 "0",
+                 String(lux));
   }
-
-  // Case 2: Sunlight stops
-  else if (sensorValue <= threshold && inSunlight) {
+  else if (lux <= thresholdLux && inSunlight) {
     inSunlight = false;
     unsigned long burstDuration = now - burstStartTime;
     totalSunlight += burstDuration;
-
-    // Send trigger: sunlight stopped
+    Serial.println("🌙 Sunlight stopped!");
     triggerIFTTT(Event_SunlightOff,
-                 String(totalSunlight / 60000), // total minutes
-                 String(burstDuration / 1000),  // last burst seconds
-                 String(sensorValue));
+                 String(totalSunlight / 60000),
+                 String(burstDuration / 1000),
+                 String(lux));
   }
-
-  delay(5000); // check every 5 sec
 }
 
+// ===== IFTTT Trigger =====
 void triggerIFTTT(String event, String value1, String value2, String value3) {
   String url = "/trigger/" + event + "/with/key/" + IFTTT_Key;
+
+  Serial.print("Connecting to IFTTT for event: ");
+  Serial.println(event);
 
   client.beginRequest();
   client.post(url);
   client.sendHeader("Content-Type", "application/json");
   client.sendHeader("Connection", "close");
 
-  // Build JSON payload
-  String json = "{\"value1\":\"" + value1 + "\", \"value2\":\"" + value2 + "\", \"value3\":\"" + value3 + "\"}";
+  String json = "{\"value1\":\"" + value1 +
+                "\", \"value2\":\"" + value2 +
+                "\", \"value3\":\"" + value3 + "\"}";
   client.sendHeader("Content-Length", json.length());
   client.beginBody();
   client.print(json);
   client.endRequest();
+
+  client.setTimeout(10000); // wait up to 10 seconds for response
 
   int statusCode = client.responseStatusCode();
   String response = client.responseBody();
