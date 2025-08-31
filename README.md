@@ -1,30 +1,92 @@
 # SIT210 – Task 3.1P: Creating an IFTTT Trigger
 
-## 1. System Description 
-The system monitors sunlight for a terrarium using an Arduino Nano 33 IoT and a light-dependent resistor (LDR). The Arduino continuously reads an analog voltage produced by the LDR and a fixed 10 kΩ resistor (voltage divider). When the measured light level crosses a predefined threshold, the Arduino sends an HTTPS webhook to the IFTTT Webhooks service. IFTTT receives the webhook and performs the configured action (mobile notification or email), thereby notifying the user that sunlight has started or stopped.
+## 1. System Description
+
+The project monitors sunlight exposure for a terrarium using an **Arduino Nano 33 IoT** and a **light-dependent resistor (LDR)**. The Arduino measures light intensity through a voltage divider made from the LDR and a fixed resistor. When sunlight starts or stops (based on a defined threshold), the Arduino sends a **Webhook request** to the IFTTT Webhooks service.
+
+Each webhook transmits three values:
+
+* **Value1** → total sunlight time accumulated for the day (minutes).
+* **Value2** → duration of the most recent sunlight burst (seconds).
+* **Value3** → sensor reading (proxy for lux) at the transition.
+
+IFTTT receives the webhook and triggers the configured applets, which generate real-time mobile notifications to keep the user informed of sunlight conditions for the terrarium.
+
+---
 
 ### a) Function of hardware components
-- **Arduino Nano 33 IoT**: central controller and Wi-Fi interface; samples the analog sensor, executes logic (threshold + hysteresis), and sends HTTPS webhooks to IFTTT.  
-- **LDR (photoresistor)**: sensor whose resistance varies with light; used to measure ambient light intensity.  
-- **10 kΩ resistor**: forms a voltage divider with the LDR to produce a measurable analog voltage at the Arduino analog input.  
-- **LED (optional)**: local visual indicator showing detected sunlight state (ON when sunlight detected).  
-- **Breadboard and jumper wires**: provide prototyping connections and mechanical stability for the circuit.
+
+* **Arduino Nano 33 IoT**: central microcontroller; reads the sensor, tracks sunlight timing, and sends HTTPS webhook requests to IFTTT using onboard Wi-Fi.
+* **LDR (photoresistor)**: sensor whose resistance decreases as light increases, enabling sunlight measurement.
+* **10 kΩ resistor**: forms a voltage divider with the LDR, producing an analog voltage the Arduino can measure on pin A0.
+* **Breadboard and jumper wires**: provide electrical connections and a stable prototyping setup.
+* **(Optional) LED**: can be used for local indication of sunlight state.
+
+---
 
 ### b) IFTTT trigger mechanism
-Two events are used:
-- `terrarium_sunlight_on` — triggered when the measured light rises above the selected threshold.
-- `terrarium_sunlight_off` — triggered when the measured light falls below the selected threshold.
 
-Each webhook call includes the sensor reading as `value1` so IFTTT can include this value in the notification.
+Two events are implemented:
+
+* `sunlight_started` → sent when the sensor reading rises above the set threshold (sunlight detected).
+* `sunlight_stopped` → sent when the reading drops below the threshold (sunlight ended).
+
+Each event sends a JSON payload with `value1`, `value2`, and `value3`. IFTTT substitutes these into notification templates (e.g., “🌞 Terrarium sunlight STARTED – Total today: {{Value1}} minutes”).
+
+---
 
 ### c) Notification mechanism
-When IFTTT receives a `terrarium_sunlight_on` or `terrarium_sunlight_off` event, the corresponding IFTTT applet performs the configured action: send a push notification via the IFTTT mobile app or send an email. The notification text can include `{{Value1}}`, allowing the message to show the numeric sensor reading and help validate the event.
 
-## 2. Testing procedure 
-Measure the analog readings from the sensor in bright sunlight and in shade using the Serial Monitor. Calculate a threshold as a value roughly midway between the typical bright and shade readings, and set the `THRESHOLD` constant in the sketch. Run the device and perform at least five ON/OFF cycles by alternately exposing and covering the LDR; observe the Serial Monitor and confirm that each state change prints the expected detection messages and that the matching IFTTT notification is received.
+When an event is triggered, IFTTT delivers a **push notification** via the IFTTT mobile app (or optionally email). The notifications are customized to include `{{Value1}}`, `{{Value2}}`, and `{{Value3}}`, giving the user meaningful real-time data on terrarium sunlight exposure.
 
-Acceptable performance is defined as receiving at least four out of five correct notifications within a few seconds of each physical change and stable operation (no repeated false triggers) over a continuous monitoring period (e.g., 30 minutes). Capture the Serial Monitor log and screenshots of received notifications as submission evidence.
+---
 
+## 2. Hardware Setup
 
+### Components
 
+* Arduino Nano 33 IoT
+* LDR (photoresistor)
+* 10 kΩ resistor
+* Breadboard + jumper wires
+* USB cable for programming/power
+
+### Circuit Wiring (Voltage Divider Method)
+
+```
+[Arduino Nano 33 IoT]    
+   3.3V ──────┐
+              │
+              └── LDR ────── A0
+                          │
+                          └── 10kΩ resistor ────── GND
+```
+
+* One leg of the **LDR** → 3.3V.
+* Other leg of the **LDR** → Analog input A0 **and** one side of the **10 kΩ resistor**.
+* Other side of the **resistor** → GND.
+
+This creates a voltage divider:
+
+* In bright sunlight → LDR resistance drops → A0 voltage increases.
+* In shade/dark → LDR resistance rises → A0 voltage decreases.
+
+The Arduino uses these voltage changes to decide when sunlight starts and stops.
+
+---
+
+## 3. Testing procedure
+
+1. Use the Arduino IDE Serial Monitor to observe raw sensor values under bright sunlight and in shaded/dark conditions.
+2. Select a threshold roughly midway between these readings and set it in the sketch.
+3. Run the system and alternate between exposing the LDR to sunlight and covering it, creating several start/stop cycles.
+4. Verify through Serial Monitor that the Arduino prints correct detection messages and that IFTTT delivers matching notifications with the expected data values.
+5. Successful operation is defined as:
+
+   * Notifications received consistently within a few seconds of sunlight changes.
+   * Total sunlight time (`Value1`) increases correctly across multiple bursts.
+   * Last burst duration (`Value2`) matches the actual exposure time.
+   * Sensor value (`Value3`) corresponds with the measured light level at each event.
+
+Stability is further confirmed by leaving the system running for at least 30 minutes without false triggers. Evidence includes Serial Monitor logs and screenshots of the received IFTTT notifications.
 
